@@ -1,0 +1,9 @@
+# Add your Python dependencies here
+psycopg2-binary
+docker
+python-dotenv
+numpy
+pandas
+Faker
+colorama
+tabulate

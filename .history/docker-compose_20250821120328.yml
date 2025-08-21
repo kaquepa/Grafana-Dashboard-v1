@@ -1,0 +1,129 @@
+services:
+  # -----------------------------
+  # Adminer (interface de DB)
+  # -----------------------------
+  manager:
+    image: adminer
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - monitoring
+
+  # -----------------------------
+  # PostgreSQL (nomes simples)
+  # -----------------------------
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres  # Nome simples e padrão
+      POSTGRES_PASSWORD: secure_password_123
+      POSTGRES_DB: grafana  # Nome simples
+      # Reduzir logs do PostgreSQL
+      POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/01_init.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./infrastructure/02_tables.sql:/docker-entrypoint-initdb.d/02_tables.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d grafana"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - monitoring
+    restart: unless-stopped
+     # Configuração de logs mais silenciosa
+    command: >
+      -postgres 
+      -c log_statement=none
+      -c log_min_messages=warning
+      -c log_min_error_statement=error
+      -c log_connections=off
+      -c log_disconnections=off
+      -c shared_preload_libraries='
+
+  # -----------------------------
+  # Grafana (tudo consistente)
+  # -----------------------------
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      # Database config
+      GF_DATABASE_TYPE: postgres
+      GF_DATABASE_HOST: postgres:5432
+      GF_DATABASE_NAME: grafana
+      GF_DATABASE_USER: postgres
+      GF_DATABASE_PASSWORD: secure_password_123
+      GF_DATABASE_SSL_MODE: disable
+      # Admin config
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      # Performance
+      GF_DATABASE_MAX_IDLE_CONN: 2
+      GF_DATABASE_MAX_OPEN_CONN: 0
+      # Logs limpos
+      GF_LOG_LEVEL: error
+      GF_LOG_MODE: console
+      # Disable analytics and updates
+      GF_ANALYTICS_REPORTING_ENABLED: false
+      GF_ANALYTICS_CHECK_FOR_UPDATES: false
+      GF_CHECK_FOR_UPDATES: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  # -----------------------------
+  # Python App
+  # -----------------------------
+  python-app:
+    build: ./python-app
+    container_name: python_app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:secure_password_123@postgres:5432/grafana
+    volumes:
+      - ./python-app:/app
+    working_dir: /app
+    command: >
+      sh -c "echo '🐍 Executando main.py...' &&
+             python -u main.py &&
+             echo '✅ Execução concluída com sucesso!' &&
+             echo '⏳ Mantendo container ativo para debugging...' &&
+             tail -f /dev/null"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+# -----------------------------
+# Volumes
+# -----------------------------
+volumes:
+  postgres_data:
+  grafana_data:
+
+# -----------------------------
+# Networks
+# -----------------------------
+networks:
+  monitoring:
+    driver: bridge
