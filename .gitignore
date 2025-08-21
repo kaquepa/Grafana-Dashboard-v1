@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -7,10 +8,19 @@ env/
 venv/
 .venv/
 .virtual/
+
+# Environment variables
 .env
+
+# OS
 .DS_Store
+
+# Docker volumes
 grafana_data/
 postgres_data/
+
+# Logs
 *.log
+
 # History files
 .history/
