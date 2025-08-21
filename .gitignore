@@ -14,4 +14,4 @@ grafana/grafana_api_key.txt
 postgres_data/
 *.log
 # History files
-.history/
+.history/grafana/grafana_api_key.txt
