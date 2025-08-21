@@ -1,0 +1,41 @@
+<<<<<<< HEAD
+# Python
+=======
+>>>>>>> de6be30 (Add .gitignore file to exclude unnecessary files)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.virtual/
+<<<<<<< HEAD
+
+# Environment variables
+.env
+
+# OS
+.DS_Store
+
+# Docker volumes
+grafana_data/
+postgres_data/
+
+# Logs
+*.log
+
+# History files
+.history/
+
+grafana/grafana_api_key.txt
+=======
+.env
+.DS_Store
+grafana_data/
+postgres_data/
+*.log
+# History files
+.history/
+>>>>>>> de6be30 (Add .gitignore file to exclude unnecessary files)

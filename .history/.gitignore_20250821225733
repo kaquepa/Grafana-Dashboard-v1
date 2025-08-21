@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+.virtual/
+.env
+.DS_Store
+grafana_data/
+postgres_data/
+*.log
+# History files
+.history/
