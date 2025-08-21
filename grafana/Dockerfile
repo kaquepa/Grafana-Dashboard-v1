@@ -1,12 +1,16 @@
-FROM grafana/grafana:latest
+FROM python:3.9-slim
 
-# Apenas limpar cache se existir (não tocar nos plugins built-in)
-USER root
-RUN rm -rf /var/lib/grafana/plugins-cache/* 2>/dev/null || true \
-    && rm -rf /var/lib/grafana/tmp/* 2>/dev/null || true
+WORKDIR /app
 
-# Voltar para usuário padrão
-USER grafana
+# Copy requirements.txt from python-app directory
+COPY python-app/requirements.txt .
 
-# Expor porta
-EXPOSE 3000
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy scripts from grafana directory
+COPY grafana/create_service_account.py .
+COPY config.py .
+COPY grafana/grafana_api_key.txt .
+
+CMD ["python", "create_service_account.py"]

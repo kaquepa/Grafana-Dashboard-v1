@@ -7,8 +7,8 @@ datasources:
     type: postgres
     access: proxy
     url: postgres:5432
-    database: Grafana_DB
-    user: Grafana_Admin
+    database: grafana 
+    user: postgres_admin
     jsonData:
       sslmode: disable
       postgresVersion: 1500  # PostgreSQL 15
@@ -16,4 +16,4 @@ datasources:
     secureJsonData:
       password: secure_password_123
     isDefault: true
-    editable: true
+    editable: false

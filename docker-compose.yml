@@ -9,7 +9,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DEFAULT_SERVER: ${POSTGRES_HOST}
     depends_on:
       postgres:
         condition: service_healthy
@@ -23,9 +23,9 @@ services:
     image: postgres:15
     container_name: postgres
     environment:
-      POSTGRES_USER: postgres  # Nome simples e padrão
-      POSTGRES_PASSWORD: secure_password_123
-      POSTGRES_DB: grafana  # Nome simples
+      POSTGRES_USER: ${POSTGRES_USER} #postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #secure_password_123
+      POSTGRES_DB: ${POSTGRES_DB} #grafana
       # Reduzir logs do PostgreSQL
       POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
     volumes:
@@ -35,7 +35,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d grafana"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,15 +60,15 @@ services:
     container_name: grafana
     environment:
       # Database config
-      GF_DATABASE_TYPE: postgres
-      GF_DATABASE_HOST: postgres:5432
-      GF_DATABASE_NAME: grafana
-      GF_DATABASE_USER: postgres
-      GF_DATABASE_PASSWORD: secure_password_123
+      GF_DATABASE_TYPE: ${GF_DATABASE_TYPE}
+      GF_DATABASE_HOST: ${POSTGRES_HOST}
+      GF_DATABASE_NAME: ${POSTGRES_DB}
+      GF_DATABASE_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_DATABASE_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
       GF_DATABASE_SSL_MODE: disable
       # Admin config
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
       # Performance
       GF_DATABASE_MAX_IDLE_CONN: 2
       GF_DATABASE_MAX_OPEN_CONN: 0
@@ -79,6 +79,22 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: false
       GF_ANALYTICS_CHECK_FOR_UPDATES: false
       GF_CHECK_FOR_UPDATES: false
+
+      # Token Manager config
+      GRAFANA_URL: http://localhost:3000
+      GRAFANA_SA_NAME: ${GRAFANA_SA_NAME:-dashboards-service-v2}
+      GRAFANA_TOKEN_NAME: ${GRAFANA_TOKEN_NAME:-dashboard-token}
+
+      # Configurações extras
+      GF_FEATURE_TOGGLES_DISABLE_SANITIZE_HTML: true
+      GF_DEFAULT_INSTANCE_NAME: grafana-local
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://grafana:3000/api/health || exit 1"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
@@ -86,9 +102,32 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
     restart: unless-stopped
     networks:
       - monitoring
+  # Adicione este novo serviço:
+  create-service-account:
+    build:
+      context: .
+      dockerfile: grafana/Dockerfile
+    container_name: create-grafana-token
+    volumes:
+      - ./grafana/create_service_account.py:/app/create_service_account.py
+      - ./config.py:/app/config.py 
+      - ./grafana/grafana_api_key.txt:/app/grafana/grafana_api_key.txt
+    working_dir: /app
+    networks:
+      - monitoring
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
+      GRAFANA_URL: http://grafana:3000
+    depends_on:
+      grafana:
+        condition: service_healthy
+    restart: "no"
 
   # -----------------------------
   # Python App
@@ -100,7 +139,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://postgres:secure_password_123@postgres:5432/grafana
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:5432/${POSTGRES_DB}
     volumes:
       - ./python-app:/app
     working_dir: /app
